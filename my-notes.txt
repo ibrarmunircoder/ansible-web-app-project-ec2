@@ -1,0 +1,18 @@
+Create EC2's Instances on the AWS Console.
+
+Security Groups should be attached to EC2's with least privileges
+
+Everything else should be controlled from control node using ansible
+
+Launch Each EC2 for each components such as nodejs, react and postgress
+
+Solved python requests module issues by using these commands
+pip3 install requests
+pip3 install 'urllib3<2.0'
+
+
+install docker using ansible
+https://alexhernandez.info/articles/infrastructure/how-to-install-docker-using-ansible/
+
+
+https://github.com/ycetindil/Todo-AWS-Jenkins-Ansible-Terraform-Docker

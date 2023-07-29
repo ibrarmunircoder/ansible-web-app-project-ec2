@@ -1,0 +1,111 @@
+- name: Install and start docker engine
+  hosts: nodejs
+  become: true
+  tasks:
+    - name: Upgrade all packages
+      yum:
+        name: '*'
+        state: latest
+    - name: Uninstall older version of docker
+      yum:
+        name: '{{ item }}'
+        state: removed
+      with_items:
+        - docker
+        - docker-client
+        - docker-client-latest
+        - docker-common
+        - docker-latest
+        - docker-latest-logrotate
+        - docker-logrotate
+        - docker-engine
+    - name: Install yum utils
+      yum:
+        name:
+          - yum-utils
+          - amazon-linux-extras
+          - device-mapper-persistent-data
+          - lvm2
+        state: latest
+    - name: Install docker
+      shell: amazon-linux-extras install docker -y
+    - name: Add ec2-user to docker group
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+    - name: Start the docker
+      systemd:
+        name: docker
+        enabled: yes
+        state: started
+    # Necessary when running ansible on the remote control system. In my case i installed locally via pip
+    # - name: Install the PIP
+    #   package:
+    #     name: python3-pip
+    #     state: present
+    # - name: Install docker sdk to manager stuff
+    #   pip:
+    #     name: docker
+- name: Create Nodejs user
+  hosts: nodejs
+  become: yes
+  tasks:
+    - name: Create group
+      group:
+        name: nodejs
+        state: present
+
+    - name: create nodejs user
+      user:
+        name: nodejs
+        comment: Nodejs user for todo app
+        group: nodejs
+
+    - name: Add nodejs to docker group
+      user:
+        name: nodejs
+        groups: docker
+        append: yes
+
+- name: Copy project files and start container
+  hosts: nodejs
+  become: yes
+  become_user: nodejs
+  tasks:
+    - name: Create project directory
+      file:
+        path: /home/nodejs/todo
+        state: directory
+        owner: nodejs
+        group: nodejs
+        mode: '0744'
+
+    - name: Copy server folder recursively
+      copy:
+        src: /mnt/c/ansible-web-app-project-ec2/todo-app-pern/server/
+        dest: /home/nodejs/todo
+
+    - name: remove container and image if exist
+      shell: "docker ps -q --filter 'name=todo' && docker stop todo && docker rm -fv todo && docker image rm -f ibrarmunir009/todo || echo 'Not Found'"
+
+    - name: build docker image
+      docker_image:
+        name: ibrarmunir009/todo
+        build:
+          path: /home/nodejs/todo
+        source: build
+        state: present
+
+    - name: create todo container
+      docker_container:
+        name: todo
+        image: ibrarmunir009/todo
+        state: started
+        ports:
+          - '5000:5000'
+      register: container_info
+
+    - name: print the container info
+      debug:
+        var: container_info
